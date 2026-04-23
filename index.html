@@ -1,88 +1,268 @@
 <!DOCTYPE html>
-          firstInboundDate: formData.firstInboundDate,
-          firstInboundMethod: buildInboundMethodSummary(formData),
-          returnInboundAddress: formData.returnInboundAddress,
-          packingMethod: formData.packingMethod,
-          systemAccessEmail: formData.systemAccessEmail,
-          noticeEmail: formData.noticeEmail,
-          extraInquiry: formData.extraInquiry || ''
-        }
-      };
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>N배송 세팅 사전 제출 요청</title>
 
-      try {
-        const res = await fetch(API_BASE, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        const json = await res.json();
-        if (!json.ok) {
-          alert(json.message || '제출 중 오류가 발생했습니다.');
-          state.submitting = false;
-          if (submitBtn) submitBtn.disabled = false;
-          return;
-        }
-
-        renderDone();
-      } catch (err) {
-        alert('제출 중 오류가 발생했습니다.');
-        state.submitting = false;
-        if (submitBtn) submitBtn.disabled = false;
-      }
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: #f5f7fb;
     }
 
-    function wireFormEvents() {
-      const methodEl = document.getElementById('firstInboundMethod');
-      const vehicleTypeEl = document.getElementById('vehicleInboundType');
-      const form = document.getElementById('setupForm');
-
-      methodEl?.addEventListener('change', toggleInboundFields);
-      vehicleTypeEl?.addEventListener('change', toggleVehicleTypeFields);
-
-      form?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const formData = collectFormData();
-        const error = validateForm(formData);
-        if (error) {
-          alert(error);
-          return;
-        }
-        openSummary(formData);
-      });
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px;
     }
 
-    async function init() {
-      state.token = qs('token');
-      if (!state.token) {
-        renderError('유효하지 않은 접근입니다.');
-        return;
-      }
-
-      renderLoading();
-
-      try {
-        const res = await fetch(`${API_BASE}?token=${encodeURIComponent(state.token)}`);
-        const data = await res.json();
-
-        if (!data.ok) {
-          renderError(data.message || '유효하지 않은 링크입니다.');
-          return;
-        }
-
-        if (data.submitted || data.locked) {
-          renderError('이미 제출 완료되었거나 수정이 잠긴 양식입니다.');
-          return;
-        }
-
-        state.prefill = data.data;
-        renderForm(data.data);
-      } catch (err) {
-        renderError('폼 정보를 불러오지 못했습니다.');
-      }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.05);
     }
 
-    init();
-  </script>
+    h1 { margin: 0 0 10px; }
+    h2 { margin: 0 0 16px; font-size: 18px; }
+
+    label {
+      font-weight: bold;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .full { grid-column: 1 / -1; }
+
+    button {
+      background: black;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .logo {
+      height: 40px;
+      margin-bottom: 12px;
+    }
+
+    .done {
+      text-align: center;
+      padding: 60px;
+    }
+  </style>
+</head>
+
+<body>
+<div id="app"></div>
+
+<script>
+const API_BASE = "https://script.google.com/macros/s/AKfycbzMtCwGPCAhEj2ko3tgL7-e9frundQdDfhgngKx8-Uj494LGCi3GRYkMrLT-P6N7k-fiQ/exec";
+
+const token = new URLSearchParams(location.search).get("token");
+
+async function init() {
+  if (!token) return renderError("잘못된 접근입니다.");
+
+  const res = await fetch(`${API_BASE}?token=${token}`);
+  const data = await res.json();
+
+  if (!data.ok) return renderError(data.message);
+  if (data.submitted) return renderDone();
+
+  renderForm(data.data);
+}
+
+function renderError(msg) {
+  document.getElementById("app").innerHTML = `<div class="wrap"><div class="card">${msg}</div></div>`;
+}
+
+function renderDone() {
+  document.getElementById("app").innerHTML = `
+    <div class="done">
+      <img src="Primary Logo.png" class="logo"/>
+      <h2>제출이 완료되었습니다.</h2>
+      <p>품고에서 확인 후 빠른 시간 내 추가 적인 정보는 메일로 안내드리겠습니다🙏</p>
+    </div>
+  `;
+}
+
+function renderForm(d) {
+  document.getElementById("app").innerHTML = `
+    <div class="wrap">
+      <div class="card">
+        <img src="Primary Logo.png" class="logo"/>
+        <h1>${d["고객사명"]} _ N배송 세팅 사전 제출 요청</h1>
+      </div>
+
+      <form id="form">
+
+        <div class="card">
+          <b>API 링크</b><br>${d["API 계정"] || "-"}<br><br>
+          <b>스토어명</b><br>${d["스토어링크"] || "-"}
+        </div>
+
+        <div class="card">
+          <h2>1. 운영 정보</h2>
+          <label>SKU 수</label>
+          <input name="operatingSku" value="${d["운영 SKU"] || ""}" required>
+
+          <label>단수 출고 SKU 여부</label>
+          <select name="singleSkuYn">
+            <option value="Y">Y</option>
+            <option value="N">N</option>
+          </select>
+
+          <label>월 출고 물량</label>
+          <input name="monthlyVolume" value="${d["월 물량"] || ""}">
+        </div>
+
+        <div class="card">
+          <h2>2. 초도 입고</h2>
+
+          <label>입고 예정일</label>
+          <input type="date" name="firstInboundDate">
+
+          <label>입고 방식</label>
+          <select name="firstInboundMethod" id="method">
+            <option value="">선택</option>
+            <option value="차량">차량</option>
+            <option value="택배">택배</option>
+          </select>
+
+          <div id="vehicle" style="display:none;">
+            <label>형태</label>
+            <select id="type">
+              <option value="">선택</option>
+              <option value="PLT입고">PLT입고</option>
+              <option value="박스입고">박스입고</option>
+            </select>
+
+            <input id="plt" placeholder="PLT 수" style="display:none;">
+            <input id="box" placeholder="박스 수" style="display:none;">
+          </div>
+
+          <div id="parcel" style="display:none;">
+            <input id="parcelBox" placeholder="박스 수">
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>3~6</h2>
+
+          <label>반품 입고지</label>
+          <input name="returnInboundAddress" value="${d["반품 입고지"] || ""}">
+
+          <label>포장 방법</label>
+          <input name="packingMethod" value="${d["포장 방법"] || ""}">
+
+          <label>시스템 접속 메일</label>
+          <input name="systemAccessEmail" value="${d["시스템 접속 메일 주소"] || ""}">
+
+          <label>공지 메일</label>
+          <input name="noticeEmail" value="${d["공지 수신 메일 주소"] || ""}">
+
+          <label>기타 문의</label>
+          <textarea name="extraInquiry">${d["기타 문의 사항"] || ""}</textarea>
+
+          <br><br>
+          <button type="submit">제출 하기</button>
+        </div>
+
+      </form>
+    </div>
+  `;
+
+  bindEvents();
+}
+
+function bindEvents() {
+  const method = document.getElementById("method");
+  const vehicle = document.getElementById("vehicle");
+  const parcel = document.getElementById("parcel");
+  const type = document.getElementById("type");
+
+  method.onchange = () => {
+    vehicle.style.display = method.value === "차량" ? "block" : "none";
+    parcel.style.display = method.value === "택배" ? "block" : "none";
+  };
+
+  type.onchange = () => {
+    document.getElementById("plt").style.display = type.value === "PLT입고" ? "block" : "none";
+    document.getElementById("box").style.display = type.value === "박스입고" ? "block" : "none";
+  };
+
+  document.getElementById("form").onsubmit = async (e) => {
+    e.preventDefault();
+
+    if (!confirm("제출 후 수정 불가합니다. 진행할까요?")) return;
+
+    const f = new FormData(e.target);
+
+    const payload = {
+      token,
+      form: {
+        operatingSku: f.get("operatingSku"),
+        singleSkuYn: f.get("singleSkuYn"),
+        monthlyVolume: f.get("monthlyVolume"),
+        firstInboundDate: f.get("firstInboundDate"),
+        firstInboundMethod: buildInbound(),
+        returnInboundAddress: f.get("returnInboundAddress"),
+        packingMethod: f.get("packingMethod"),
+        systemAccessEmail: f.get("systemAccessEmail"),
+        noticeEmail: f.get("noticeEmail"),
+        extraInquiry: f.get("extraInquiry")
+      }
+    };
+
+    const res = await fetch(API_BASE, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    const result = await res.json();
+
+    if (result.ok) renderDone();
+    else alert(result.message);
+  };
+}
+
+function buildInbound() {
+  const m = document.getElementById("method").value;
+
+  if (m === "차량") {
+    const t = document.getElementById("type").value;
+    if (t === "PLT입고") return `차량/PLT ${document.getElementById("plt").value}`;
+    if (t === "박스입고") return `차량/박스 ${document.getElementById("box").value}`;
+  }
+
+  if (m === "택배") {
+    return `택배/박스 ${document.getElementById("parcelBox").value}`;
+  }
+
+  return "";
+}
+
+init();
+</script>
 </body>
 </html>
